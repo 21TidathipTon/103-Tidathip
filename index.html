@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คอร์สแวร์: ระบบสุริยะและสื่อเทคโนโลยีความจริงเสริม</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Model Viewer for Unit 4 -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <style>
+        /* CSS โทนวิชาการ */
+        :root {
+            --primary: #0F172A; /* Navy */
+            --secondary: #475569; /* Slate */
+            --bg: #F8FAFC;
+            --white: #FFFFFF;
+            --success: #15803D; /* Muted Green */
+            --error: #B91C1C; /* Muted Red */
+            --border: #E2E8F0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Sarabun', sans-serif; }
+        body { background-color: var(--bg); color: var(--primary); line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        /* Typography */
+        h1, h2, h3 { color: var(--primary); margin-bottom: 15px; }
+        p { margin-bottom: 10px; }
+        
+        /* UI Elements */
+        .card { background: var(--white); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card-header { background: var(--primary); color: var(--white); padding: 15px; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
+        
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 4px; }
+        button { background: var(--primary); color: var(--white); padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: var(--secondary); }
+        button:disabled { background: var(--border); cursor: not-allowed; color: var(--secondary); }
+        
+        /* Navigation */
+        nav { background: var(--primary); padding: 10px 20px; color: var(--white); display: flex; justify-content: space-between; align-items: center; }
+        .nav-links button { background: transparent; padding: 5px 10px; }
+        
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
+        th { background: var(--primary); color: var(--white); }
+        
+        /* Quiz */
+        .option-btn { display: block; width: 100%; text-align: left; background: var(--bg); color: var(--primary); margin-bottom: 10px; border: 1px solid var(--border); }
+        .option-btn:hover { background: #E2E8F0; }
+        .option-btn.correct { background: var(--success); color: white; }
+        .option-btn.wrong { background: var(--error); color: white; }
+        
+        /* Messages */
+        .msg { padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .msg-error { background: #FEE2E2; color: var(--error); border: 1px solid #F87171; }
+        .msg-success { background: #DCFCE7; color: var(--success); border: 1px solid #4ADE80; }
+        
+        .hidden { display: none !important; }
+        .img-preview { max-width: 150px; border-radius: 50%; aspect-ratio: 1; object-fit: cover; border: 2px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- การตั้งค่าตัวแปร: ให้ใส่ค่าของโปรเจกต์คุณที่นี่ -->
+    <script>
+        const SUPABASE_URL = ''; // ใส่ URL (เช่น https://xxxx.supabase.co)
+        const SUPABASE_ANON_KEY = ''; // ใส่ anon key
+    </script>
+
+    <div id="configAlert" class="container hidden" style="margin-top: 50px;">
+        <div class="card">
+            <h2 style="color: var(--error);">⚠️ ยังไม่ได้ตั้งค่าระบบ</h2>
+            <p>กรุณาเปิดไฟล์ HTML นี้ด้วย Text Editor และแก้ไขตัวแปร <code>SUPABASE_URL</code> และ <code>SUPABASE_ANON_KEY</code> ที่ส่วนต้นของไฟล์</p>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="hidden">
+        <nav>
+            <div><strong>CAI: AR & Solar System</strong></div>
+            <div class="nav-links">
+                <span id="navUserName"></span>
+                <button id="btnLogout" class="hidden">ออกจากระบบ</button>
+            </div>
+        </nav>
+
+        <div class="container" id="mainContainer">
+            <!-- Loading -->
+            <div id="viewLoading" class="card">
+                <p>กำลังโหลดข้อมูล...</p>
+            </div>
+
+            <!-- Login / Register -->
+            <div id="viewAuth" class="hidden">
+                <div class="card">
+                    <h2>เข้าสู่ระบบ / ลงทะเบียนผู้เรียน</h2>
+                    <p style="color:var(--secondary); font-size:14px; margin-bottom:15px;">
+                        * สำหรับผู้เรียน: ชื่อผู้ใช้คือ <code>รหัสนักศึกษา11หลัก@dummy.ac.th</code> (ต้องมีในระบบ)<br>
+                        * รหัสผ่านตั้งได้เองตอนสมัครครั้งแรก
+                    </p>
+                    <div id="authMsg"></div>
+                    <input type="email" id="authEmail" placeholder="อีเมล (เช่น 11111111111@dummy.ac.th)">
+                    <input type="password" id="authPwd" placeholder="รหัสผ่าน (6 ตัวอักษรขึ้นไป)">
+                    <button onclick="app.login()">เข้าสู่ระบบ</button>
+                    <button onclick="app.register()" style="background: var(--secondary);">ลงทะเบียนครั้งแรก</button>
+                </div>
+            </div>
+
+            <!-- Profile Update (For first time login) -->
+            <div id="viewProfileUpdate" class="card hidden">
+                <div class="card-header">กรอกข้อมูลส่วนตัว</div>
+                <div id="profileMsg"></div>
+                <input type="text" id="profTitle" placeholder="คำนำหน้า (นาย/นางสาว)">
+                <input type="text" id="profFirst" placeholder="ชื่อ">
+                <input type="text" id="profLast" placeholder="นามสกุล">
+                <input type="text" id="profSec" placeholder="กลุ่มเรียน (เช่น 1 หรือ 2)">
+                <label>รูปประจำตัว (ขนาดไม่เกิน 2MB, ระบบจะย่อขนาดให้อัตโนมัติ)</label>
+                <input type="file" id="profPic" accept="image/*">
+                <canvas id="imgCanvas" class="hidden"></canvas>
+                <img id="profPreview" class="img-preview hidden"><br><br>
+                <button onclick="app.saveProfile()">บันทึกข้อมูลและเข้าสู่บทเรียน</button>
+            </div>
+
+            <!-- Student Dashboard -->
+            <div id="viewStudentDash" class="hidden">
+                <div class="card">
+                    <div class="card-header">หน้าแรกผู้เรียน</div>
+                    <div style="display:flex; gap: 20px; align-items:center;">
+                        <img id="dashPic" class="img-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23ccc' viewBox='0 0 24 24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>">
+                        <div>
+                            <h3 id="dashName">ชื่อ - นามสกุล</h3>
+                            <p>รหัสนักศึกษา: <span id="dashId"></span></p>
+                            <p>คะแนนก่อนเรียน: <span id="dashPre">-</span>/10 | หลังเรียน: <span id="dashPost">-</span>/10</p>
+                            <p>Normalized Gain: <span id="dashGain">-</span></p>
+                        </div>
+                    </div>
+                    <hr style="margin:20px 0; border:1px solid var(--border);">
+                    <button onclick="app.startFlow()" id="btnStartFlow">เข้าสู่บทเรียน</button>
+                    <button onclick="app.showMaterials()" style="background:var(--secondary); margin-left:10px;">สื่อเพิ่มเติม</button>
+                </div>
+            </div>
+
+            <!-- Lesson Flow (Content & Quizzes) -->
+            <div id="viewLesson" class="card hidden">
+                <div class="card-header" id="lessonTitle">กำลังโหลด...</div>
+                <div id="lessonContent" style="margin-bottom:20px;"></div>
+                
+                <!-- Interaction Area (Mini quiz in unit) -->
+                <div id="interactionArea" class="hidden" style="background:#F1F5F9; padding:15px; border-radius:4px; margin-bottom:20px;">
+                    <strong id="miniQText">คำถาม:</strong>
+                    <div id="miniQOpts" style="margin-top:10px;"></div>
+                    <div id="miniQFeedback" class="hidden" style="margin-top:10px; font-weight:bold;"></div>
+                </div>
+
+                <!-- WebAR Practice Form (Unit 4) -->
+                <div id="arPracticeArea" class="hidden" style="background:#F1F5F9; padding:15px; border-radius:4px; margin-bottom:20px;">
+                    <h3>แบบฝึกปฏิบัติ: สร้าง AR โมเดลดาวเคราะห์</h3>
+                    <p>ส่งผลงานโดยวางลิงก์ WebAR ที่สร้างขึ้น หรืออัปโหลดภาพหน้าจอ/คลิปวิดีโอ (ไฟล์ < 20MB)</p>
+                    <select id="subKind" onchange="document.getElementById('subUrl').classList.toggle('hidden', this.value==='file'); document.getElementById('subFile').classList.toggle('hidden', this.value==='link');">
+                        <option value="link">ส่งเป็นลิงก์ (URL)</option>
+                        <option value="file">ส่งเป็นไฟล์</option>
+                    </select>
+                    <input type="url" id="subUrl" placeholder="https://...">
+                    <input type="file" id="subFile" class="hidden" accept=".png,.jpg,.pdf,.mp4">
+                    <textarea id="subNote" placeholder="หมายเหตุถึงผู้สอน..."></textarea>
+                    <button onclick="app.submitARWork()">ส่งงาน</button>
+                    <div id="subStatus" style="margin-top:10px;"></div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between;">
+                    <button id="btnPrev" onclick="app.prevStep()" style="background:var(--secondary);">ย้อนกลับ</button>
+                    <button id="btnNext" onclick="app.nextStep()" class="hidden">ถัดไป</button>
+                </div>
+            </div>
+
+            <!-- Teacher Dashboard -->
+            <div id="viewTeacherDash" class="hidden">
+                <div class="card">
+                    <div class="card-header">แผงควบคุมผู้สอน</div>
+                    <button onclick="app.exportCSV()">ส่งออก CSV (สรุปผล)</button>
+                    <button onclick="app.showManageMaterials()" style="background:var(--secondary); margin-left:10px;">จัดการสื่อเพิ่มเติม</button>
+                    <br><br>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>รหัส</th>
+                                    <th>ชื่อ-สกุล</th>
+                                    <th>ก่อนเรียน</th>
+                                    <th>หลังเรียน</th>
+                                    <th>% ก้าวหน้า</th>
+                                    <th>งาน (Unit4)</th>
+                                    <th>จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teacherTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teacher Manage Materials -->
+            <div id="viewManageMat" class="card hidden">
+                <div class="card-header">จัดการสื่อเพิ่มเติม</div>
+                <div style="margin-bottom:20px; padding:15px; border:1px solid var(--border);">
+                    <h3>เพิ่มสื่อใหม่</h3>
+                    <input type="text" id="matTitle" placeholder="ชื่อสื่อ">
+                    <select id="matKind" onchange="document.getElementById('matUrl').classList.toggle('hidden', this.value==='file'); document.getElementById('matFile').classList.toggle('hidden', this.value!=='file');">
+                        <option value="link">ลิงก์เว็บไซต์</option>
+                        <option value="video">ลิงก์วิดีโอ (YouTube)</option>
+                        <option value="file">อัปโหลดไฟล์ (PDF, DOCX, PPTX < 50MB)</option>
+                    </select>
+                    <input type="url" id="matUrl" placeholder="https://...">
+                    <input type="file" id="matFile" class="hidden" accept=".pdf,.docx,.pptx">
+                    <button onclick="app.uploadMaterial()">เพิ่มสื่อ</button>
+                    <div id="matMsg"></div>
+                </div>
+                <h3>รายการสื่อ</h3>
+                <ul id="matList" style="list-style-type:none; padding:0;"></ul>
+                <button onclick="app.showView('viewTeacherDash')" style="margin-top:20px;">กลับแผงควบคุม</button>
+            </div>
+            
+            <!-- Materials List for Students -->
+            <div id="viewMaterials" class="card hidden">
+                <div class="card-header">สื่อการเรียนรู้เพิ่มเติม</div>
+                <ul id="studentMatList" style="list-style-type:none; padding:0;"></ul>
+                <button onclick="app.showView('viewStudentDash')" style="margin-top:20px;">กลับหน้าแรก</button>
+            </div>
+            
+            <!-- Modal Check Work (Teacher) -->
+            <div id="modalCheckWork" class="card hidden" style="position:fixed; top:10%; left:50%; transform:translate(-50%,0); z-index:100; box-shadow:0 10px 25px rgba(0,0,0,0.5); width:90%; max-width:500px;">
+                <div class="card-header">ตรวจงาน Unit 4</div>
+                <div id="workContent"></div>
+                <hr style="margin:15px 0;">
+                <input type="number" id="gradeScore" placeholder="คะแนน (เต็ม 10)" max="10" min="0">
+                <textarea id="gradeComment" placeholder="ข้อเสนอแนะ..."></textarea>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="app.saveGrade()">บันทึกคะแนน</button>
+                    <button onclick="document.getElementById('modalCheckWork').classList.add('hidden')" style="background:var(--secondary);">ปิด</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Data Configuration (Content & Exams)
+        const courseData = {
+            exams: {
+                A: [
+                    { q: "ตามนิยามของ Azuma (1997) ข้อใดไม่ใช่องค์ประกอบหลักของ AR?", opts: ["รวมโลกจริงและเสมือน", "ตอบสนองแบบเรียลไทม์", "ตัดขาดจากโลกจริงอย่างสมบูรณ์", "ลงทะเบียนในสามมิติ"], ans: 2, rationale: "AR ของ Azuma ต้องผสานโลกจริง ไม่ใช่ตัดขาด (อันนั้นคือ VR)" },
+                    { q: "ภาพสะท้อน (Reflection) บนกระจกรถยนต์ที่แสดงความเร็ว ถือเป็นเทคโนโลยีใดตาม Milgram & Kishino?", opts: ["Augmented Reality", "Virtual Reality", "Augmented Virtuality", "Real Environment"], ans: 0, rationale: "เป็นการซ้อนทับข้อมูลดิจิทัลบนโลกจริง จัดเป็นฝั่งใกล้โลกจริงในแกน Reality-Virtuality" },
+                    { q: "หากต้องการสร้าง AR โดยให้โมเดล 3 มิติปรากฏบนรูปภาพดาวพฤหัสบดีในหนังสือเรียน ควรใช้เทคโนโลยีใด?", opts: ["Location-based", "Marker-based", "Markerless", "Projection-based"], ans: 1, rationale: "รูปภาพในหนังสือทำหน้าที่เป็น Marker เพื่อระบุตำแหน่ง" },
+                    { q: "ข้อจำกัดสำคัญของการใช้งาน WebARในห้องเรียนคืออะไร?", opts: ["ต้องติดตั้งแอปพลิเคชันเสริมเสมอ", "ใช้ได้เฉพาะอุปกรณ์ของ Apple เท่านั้น", "พึ่งพาคุณภาพเครือข่ายอินเทอร์เน็ตสูง", "ไม่สามารถแสดงผล 3 มิติได้"], ans: 2, rationale: "WebAR โหลดผ่านเบราว์เซอร์ จึงต้องการอินเทอร์เน็ตที่เสถียร" },
+                    { q: "ตามหลักการของ Mayer การออกแบบสื่อ AR ควรคำนึงถึงสิ่งใดเพื่อลดภาระทางปัญญา (Cognitive Load)?", opts: ["ใส่ข้อความและเสียงบรรยายที่เหมือนกันทุกประการ", "แสดงข้อมูลสำคัญใกล้กับวัตถุที่เกี่ยวข้อง (Spatial Contiguity)", "ใส่แอนิเมชันที่ไม่เกี่ยวข้องเพื่อดึงดูดความสนใจ", "ใช้สีสันฉูดฉาดในทุกองค์ประกอบ"], ans: 1, rationale: "Spatial Contiguity ช่วยลดภาระสายตาในการกวาดหาข้อมูล" },
+                    { q: "ในแง่ของ UX/UI หากนักเรียนบางคนไม่มีสมาร์ทโฟนที่รองรับ AR ผู้สอนควรทำอย่างไร?", opts: ["ให้นักเรียนคนนั้นสอบตก", "บังคับให้ซื้ออุปกรณ์ใหม่", "จัดเตรียมวิดีโอบันทึกการใช้งาน AR หรือสื่อ 3D บนจอปกติแทน", "ข้ามเนื้อหาส่วนนั้นไปเลย"], ans: 2, rationale: "การออกแบบเพื่อทุกคน (Accessibility) ต้องมีทางเลือกสำรองเสมอ" },
+                    { q: "แท็ก <model-viewer> มีประโยชน์หลักในงาน AR อย่างไร?", opts: ["ใช้สร้างโมเดล 3 มิติจากศูนย์", "ใช้แสดงผลโมเดล 3 มิติบนเว็บและเปิดโหมด AR ได้ง่าย", "ใช้เขียนโปรแกรมฐานข้อมูล", "ใช้ตรวจจับใบหน้าผู้เรียน"], ans: 1, rationale: "เป็น Web Component สำหรับแสดงผล 3D/AR บนเว็บ" },
+                    { q: "ไฟล์นามสกุลใดที่ <model-viewer> นิยมใช้เป็นหลักสำหรับการแสดงผล 3 มิติ?", opts: [".mp4", ".glb", ".docx", ".jpg"], ans: 1, rationale: "GLB (GLTF Binary) เป็นฟอร์แมตมาตรฐานสำหรับ 3D บนเว็บ" },
+                    { q: "การหาค่าความเที่ยงตรงเชิงเนื้อหาของแบบทดสอบโดยผู้เชี่ยวชาญ (Rovinelli & Hambleton, 1977) ใช้สถิติใด?", opts: ["E1/E2", "IOC (Index of Item-Objective Congruence)", "Normalized Gain", "T-test"], ans: 1, rationale: "IOC ใช้หาความสอดคล้องระหว่างข้อสอบกับวัตถุประสงค์" },
+                    { q: "ค่า Normalized Gain (Hake, 1998) มีไว้เพื่อวัตถุประสงค์ใด?", opts: ["วัดความเร็วในการทำข้อสอบ", "ประเมินความพึงพอใจของผู้ใช้งาน", "วัดขนาดการพัฒนาความรู้ของผู้เรียนหลังผ่านการเรียนการสอน", "ประเมินคุณภาพของโมเดล 3 มิติ"], ans: 2, rationale: "ใช้วัดความก้าวหน้าสัมพัทธ์ของคะแนนสอบ" }
+                ],
+                B: [
+                    { q: "Azuma (1997) กำหนดว่าระบบ AR ต้องมีลักษณะใด?", opts: ["ลงทะเบียนข้อมูลในรูปแบบ 2 มิติเท่านั้น", "โต้ตอบได้แบบเรียลไทม์ (Real-time Interactivity)", "ใช้ได้กับแว่นตาเฉพาะทางเท่านั้น", "แยกผู้ใช้ออกจากสภาพแวดล้อมจริง"], ans: 1, rationale: "การโต้ตอบแบบทันทีเป็น 1 ใน 3 องค์ประกอบของ Azuma" },
+                    { q: "แนวคิด Reality-Virtuality Continuum (Milgram & Kishino, 1994) อธิบายสิ่งใด?", opts: ["ความต่อเนื่องระหว่างโลกจริงแท้กับโลกเสมือนสมบูรณ์แบบ", "พัฒนาการของซอฟต์แวร์การศึกษา", "ความเร็วของอินเทอร์เน็ตที่ส่งผลต่อ AR", "การเขียนโค้ด 3 มิติ"], ans: 0, rationale: "เป็นแกนแสดงระดับการผสมผสานระหว่างโลกจริงและดิจิทัล" },
+                    { q: "เกม Pokemon GO อาศัยเทคโนโลยี AR ชนิดใดเป็นหลักในการวางมอนสเตอร์ตามสถานที่จริง?", opts: ["Marker-based", "Location-based (GPS)", "Projection-based", "VR-based"], ans: 1, rationale: "ใช้พิกัด GPS เป็นตัวอ้างอิงตำแหน่ง" },
+                    { q: "ข้อใดคือข้อดีของ WebAR เมื่อเทียบกับ Native App?", opts: ["ประมวลผลกราฟิกได้สูงกว่า", "ผู้เรียนเข้าถึงได้รวดเร็วผ่านลิงก์โดยไม่ต้องโหลดแอป", "ทำงานได้โดยไม่ต้องใช้อินเทอร์เน็ตเลย", "ควบคุมฮาร์ดแวร์เชิงลึกได้ดีกว่า"], ans: 1, rationale: "ลดอุปสรรคในการเข้าใช้งาน (Friction) ของผู้เรียน" },
+                    { q: "การจัดการภาระทางปัญญา (Cognitive Load) ในสื่อ AR ทำได้อย่างไร?", opts: ["แสดงเนื้อหาทุกอย่างพร้อมกันบนหน้าจอเดียว", "ย่อยข้อมูลเป็นส่วนๆ และให้ผู้เรียนควบคุมจังหวะการเรียนเอง", "ใช้ตัวอักษรขนาดเล็กเพื่อประหยัดพื้นที่", "ลดการใช้รูปภาพและเน้นข้อความล้วน"], ans: 1, rationale: "การแบ่งเนื้อหา (Segmenting principle) ช่วยให้สมองประมวลผลทัน" },
+                    { q: "การออกแบบประสบการณ์ผู้ใช้ (UX) สำหรับสื่อ AR ที่ดีควรคำนึงถึงเรื่องใด?", opts: ["ความปลอดภัยของพื้นที่รอบตัวขณะใช้งาน", "การใช้เอฟเฟกต์เสียงดังๆ เพื่อดึงดูดความสนใจเสมอ", "การบังคับให้ผู้เรียนเดินไกลๆ ในห้องเรียนแคบ", "การซ่อนปุ่มเมนูให้ค้นหาได้ยากๆ"], ans: 0, rationale: "การใช้ AR ทำให้ผู้ใช้ถูกรบกวนการมองเห็นโลกจริงบางส่วน จึงต้องระวังอุบัติเหตุ" },
+                    { q: "หากจะเรียกใช้ <model-viewer> เพื่อให้มีปุ่มเข้าโหมด AR บนมือถือ ต้องใส่แอตทริบิวต์ใดเพิ่ม?", opts: ["autoplay", "ar", "controls", "loop"], ans: 1, rationale: "แอตทริบิวต์ ar จะแสดงปุ่ม AR บนอุปกรณ์ที่รองรับ" },
+                    { q: "ข้อใดคือขั้นตอนแรกในการสร้างสื่อ WebAR ขั้นพื้นฐาน?", opts: ["อัปโหลดไฟล์ขึ้นเซิร์ฟเวอร์ทันที", "เตรียมโมเดล 3 มิติ (เช่น สกุล .glb)", "เขียนโค้ด CSS ก่อน", "ซื้อโดเมนเนม"], ans: 1, rationale: "โมเดลเป็นแกนหลักของการแสดงผล 3 มิติ" },
+                    { q: "เกณฑ์ประสิทธิภาพ E1/E2 = 80/80 ค่า E1 หมายถึงอะไร?", opts: ["คะแนนสอบก่อนเรียน", "คะแนนเฉลี่ยร้อยละของแบบฝึกหัดระหว่างเรียน", "คะแนนสอบหลังเรียน", "ค่าความสอดคล้องของผู้เชี่ยวชาญ"], ans: 1, rationale: "E1 คือประสิทธิภาพของกระบวนการ (ทำกิจกรรมระหว่างเรียน)" },
+                    { q: "หากนักเรียนได้คะแนนก่อนเรียน 4 เต็ม 10 และหลังเรียน 8 เต็ม 10 ค่า Normalized Gain คือเท่าใด?", opts: ["0.40", "0.50", "0.67", "1.00"], ans: 2, rationale: "(8-4)/(10-4) = 4/6 = 0.67" }
+                ]
+            },
+            units: [
+                {
+                    title: "หน่วยที่ 1: พื้นฐานความจริงเสริม (AR)",
+                    content: `<p>ความจริงเสริม หรือ Augmented Reality (AR) คือเทคโนโลยีที่ผสานข้อมูลดิจิทัลเข้ากับโลกแห่งความเป็นจริง ตามนิยามของ Azuma (1997) AR ต้องมี 3 องค์ประกอบ:</p>
+                    <ol>
+                        <li>ผสานโลกจริงและโลกเสมือน (Combines real and virtual)</li>
+                        <li>โต้ตอบได้แบบเรียลไทม์ (Interactive in real time)</li>
+                        <li>ลงทะเบียนวัตถุใน 3 มิติ (Registered in 3D)</li>
+                    </ol>
+                    <p>นอกจากนี้ Milgram & Kishino (1994) ได้เสนอแนวคิด Reality-Virtuality Continuum เพื่ออธิบายระดับความต่อเนื่องตั้งแต่โลกจริง (Real Environment) ไปจนถึงโลกเสมือนสมบูรณ์ (Virtual Reality) โดย AR จะอยู่ค่อนมาทางโลกจริงมากกว่า</p>
+                    <p><strong>บริบทการศึกษา:</strong> ครูวิทยาศาสตร์สามารถใช้ AR จำลองระบบสุริยะให้ลอยอยู่กลางห้องเรียน ให้นักเรียนเดินดูดาวเคราะห์รอบๆ ได้</p>`,
+                    miniQ: {
+                        q: "เทคโนโลยีที่ตัดขาดการรับรู้โลกจริงโดยสมบูรณ์ และนำผู้ใช้เข้าไปในโลกดิจิทัลทั้งหมด เรียกว่าอะไรตาม Continuum ของ Milgram?",
+                        opts: ["Augmented Reality (AR)", "Virtual Reality (VR)", "Mixed Reality (MR)"],
+                        ans: 1
+                    }
+                },
+                {
+                    title: "หน่วยที่ 2: ชนิดและเทคโนโลยี AR",
+                    content: `<p>AR แบ่งตามเทคโนโลยีการติดตาม (Tracking) ได้หลายแบบ:</p>
+                    <ul>
+                        <li><strong>Marker-based:</strong> ใช้รูปภาพ (เช่น QR code, รูปหน้าหนังสือ) เป็นจุดอ้างอิง</li>
+                        <li><strong>Markerless:</strong> ตรวจจับพื้นผิว (Plane detection) โดยไม่ต้องใช้ภาพอ้างอิง</li>
+                        <li><strong>Location-based:</strong> ใช้ GPS และเซนเซอร์เข็มทิศ (เช่น Pokemon GO)</li>
+                    </ul>
+                    <p>ในปัจจุบัน <strong>WebAR</strong> ได้รับความนิยมมาก เพราะผู้เรียนแค่เปิด URL ผ่านเบราว์เซอร์มือถือก็ใช้งานได้ทันที ไม่ต้องโหลดแอป (Native App) แต่อาจมีข้อจำกัดเรื่องคุณภาพกราฟิกและการพึ่งพาอินเทอร์เน็ต</p>`,
+                    miniQ: {
+                        q: "ข้อใดคือจุดเด่นสำคัญที่สุดของ WebAR ในบริบทห้องเรียนที่มีเวลาจำกัด?",
+                        opts: ["กราฟิกสวยงามระดับภาพยนตร์", "ไม่ต้องติดตั้งแอปพลิเคชันเสริม", "ทำงานได้โดยไม่ต้องใช้อินเทอร์เน็ต"],
+                        ans: 1
+                    }
+                },
+                {
+                    title: "หน่วยที่ 3: การออกแบบสื่อ AR เพื่อการเรียนรู้",
+                    content: `<p>การออกแบบสื่อต้องยึดผู้เรียนเป็นศูนย์กลาง (Mayer's Principles):</p>
+                    <ul>
+                        <li><strong>ลดภาระทางปัญญา (Cognitive Load):</strong> นำเสนอข้อมูลที่จำเป็นจริงๆ อย่าใส่แอนิเมชันหรือข้อความลอยเกะกะมากเกินไป (Coherence Principle)</li>
+                        <li><strong>Spatial Contiguity:</strong> วางข้อความคำอธิบายไว้ใกล้กับดาวเคราะห์ดวงนั้นๆ ใน AR</li>
+                    </ul>
+                    <p><strong>การเข้าถึง (Accessibility):</strong> ไม่ใช่นักเรียนทุกคนจะมีสมาร์ทโฟนรุ่นใหม่ ผู้สอนต้องออกแบบทางเลือก เช่น การให้ดูผ่านจอ 3D บนคอมพิวเตอร์ หรือให้จับคู่ทำงานร่วมกัน</p>`,
+                    miniQ: {
+                        q: "หากนักเรียนบางคนไม่มีมือถือที่รองรับ AR ผู้สอนควรทำอย่างไรตามหลักการเข้าถึงสื่อ?",
+                        opts: ["ให้คะแนนเป็น 0 ในส่วนนี้", "บังคับให้ซื้ออุปกรณ์", "เตรียมทางเลือกสำรอง เช่น 3D บนเว็บเบราว์เซอร์เดสก์ท็อป"],
+                        ans: 2
+                    }
+                },
+                {
+                    title: "หน่วยที่ 4: ปฏิบัติการสร้าง WebAR ขั้นพื้นฐาน",
+                    content: `<p>เราจะใช้ไลบรารี <code>&lt;model-viewer&gt;</code> ซึ่งพัฒนาโดย Google เพื่อแสดงโมเดล 3D แบบง่าย</p>
+                    <p><strong>ตัวอย่างโค้ด:</strong></p>
+                    <pre style="background:#eee; padding:10px; overflow-x:auto;">&lt;script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"&gt;&lt;/script&gt;
+
+&lt;model-viewer 
+    src="Earth.glb" 
+    ar 
+    auto-rotate 
+    camera-controls&gt;
+&lt;/model-viewer&gt;</pre>
+                    <div style="text-align:center; margin:20px 0; border:1px solid #ccc; padding:10px;">
+                        <p>ตัวอย่างการแสดงผล (ใช้เมาส์หมุนได้) หากเปิดในมือถือจะมีปุ่ม AR</p>
+                        <!-- ใช้ model-viewer กับไฟล์จำลอง -->
+                        <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" alt="A 3D model of an astronaut" ar auto-rotate camera-controls style="width:100%; height:300px;"></model-viewer>
+                        <small>* หมายเหตุ: ใช้โมเดลนักบินอวกาศจากเว็บทางการเป็นตัวอย่าง</small>
+                    </div>
+                    <p><strong>ภาระงาน:</strong> ให้นักศึกษาค้นหาโมเดล .glb ของดาวเคราะห์ ฝากไฟล์ไว้ใน Google Drive/Github และสร้างโค้ด HTML คล้ายด้านบน จากนั้นส่งลิงก์ หรือถ่ายภาพหน้าจอขณะทดสอบบนมือถือส่ง</p>`,
+                    hasAssignment: true // Flag to show form
+                },
+                {
+                    title: "หน่วยที่ 5: การทดสอบและประเมินสื่อ AR",
+                    content: `<p>ก่อนนำสื่อ AR ไปใช้จริง ควรผ่านการประเมิน:</p>
+                    <ol>
+                        <li><strong>ประเมินโดยผู้เชี่ยวชาญ (IOC):</strong> ค่า IOC ตั้งแต่ 0.50 ขึ้นไปถือว่าใช้ได้ (Rovinelli & Hambleton, 1977)</li>
+                        <li><strong>ประสิทธิภาพ (E1/E2):</strong> เกณฑ์มาตรฐานนิยมใช้ 80/80 (คะแนนระหว่างเรียน / คะแนนหลังเรียน)</li>
+                        <li><strong>ประสิทธิผล (Normalized Gain):</strong> เสนอโดย Hake (1998) วัดพัฒนาการจากก่อนไปหลังเรียน
+                            <br>สูตร: <code>g = (Post - Pre) / (Full_Score - Pre)</code>
+                            <br>เกณฑ์ตีความ (สำหรับค่าเฉลี่ยกลุ่ม): สูง (>0.7), กลาง (0.3-0.7), ต่ำ (<0.3)
+                        </li>
+                    </ol>`,
+                    miniQ: {
+                        q: "สูตรคำนวณ Normalized Gain ตัวส่วน (Divider) คือค่าใด?",
+                        opts: ["คะแนนเต็ม บวก คะแนนก่อนเรียน", "คะแนนเต็ม ลบ คะแนนก่อนเรียน", "คะแนนหลังเรียน ลบ คะแนนก่อนเรียน"],
+                        ans: 1
+                    }
+                }
+            ]
+        };
+
+        // --- Core Application Object ---
+        const app = {
+            supabase: null,
+            user: null,
+            userData: null,
+            state: {
+                step: 0, // 0: intro, 1: pre-test, 2-6: units, 7: post-test, 8: summary
+                examType: 'A', // Default, will calculate based on ID
+                answers: [],
+                tempScore: 0
+            },
+
+            init: function() {
+                if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+                    document.getElementById('configAlert').classList.remove('hidden');
+                    return;
+                }
+                document.getElementById('app').classList.remove('hidden');
+                this.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                this.checkSession();
+            },
+
+            // Utils
+            escapeHTML: function(str) {
+                return (str||'').replace(/[&<>'"]/g, tag => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+                }[tag]));
+            },
+            showView: function(viewId) {
+                const views = ['viewLoading', 'viewAuth', 'viewProfileUpdate', 'viewStudentDash', 'viewLesson', 'viewTeacherDash', 'viewManageMat', 'viewMaterials'];
+                views.forEach(v => document.getElementById(v).classList.add('hidden'));
+                document.getElementById(viewId).classList.remove('hidden');
+            },
+            showMsg: function(elId, msg, isError = false) {
+                const el = document.getElementById(elId);
+                el.className = 'msg ' + (isError ? 'msg-error' : 'msg-success');
+                el.innerText = msg;
+                setTimeout(() => el.innerText = '', 5000);
+            },
+
+            // Auth
+            checkSession: async function() {
+                const { data: { session } } = await this.supabase.auth.getSession();
+                if (session) {
+                    this.user = session.user;
+                    document.getElementById('btnLogout').classList.remove('hidden');
+                    this.loadUserData();
+                } else {
+                    this.showView('viewAuth');
+                }
+            },
+            register: async function() {
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPwd').value;
+                if(!email.match(/^\d{11}@/)) return this.showMsg('authMsg', 'รูปแบบอีเมลต้องเป็น รหัสนักศึกษา11หลัก@dummy.ac.th', true);
+                
+                const { error } = await this.supabase.auth.signUp({ email, password });
+                if (error) this.showMsg('authMsg', error.message, true);
+                else this.showMsg('authMsg', 'ลงทะเบียนสำเร็จ (หากตั้งค่าข้ามยืนยันอีเมลแล้ว ให้ล็อกอินได้เลย)');
+            },
+            login: async function() {
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPwd').value;
+                const { data, error } = await this.supabase.auth.signInWithPassword({ email, password });
+                if (error) this.showMsg('authMsg', 'เข้าสู่ระบบล้มเหลว: ' + error.message, true);
+                else {
+                    this.user = data.user;
+                    document.getElementById('btnLogout').classList.remove('hidden');
+                    this.loadUserData();
+                }
+            },
+            logout: async function() {
+                await this.supabase.auth.signOut();
+                window.location.reload();
+            },
+
+            // Routing User Types
+            loadUserData: async function() {
+                this.showView('viewLoading');
+                
+                // Check if teacher
+                const { data: isTeacher } = await this.supabase.rpc('is_teacher');
+                if (isTeacher) {
+                    document.getElementById('navUserName').innerText = 'ระบบผู้สอน';
+                    this.loadTeacherDashboard();
+                    return;
+                }
+
+                // Is Student
+                const { data: student } = await this.supabase.from('students').select('*').eq('user_id', this.user.id).single();
+                if (!student) return this.showMsg('authMsg', 'ไม่พบข้อมูลนักศึกษา', true);
+                
+                this.userData = student;
+                document.getElementById('navUserName').innerText = student.first_name || student.id;
+
+                if (!student.first_name) {
+                    this.showView('viewProfileUpdate');
+                } else {
+                    this.loadStudentDashboard();
+                }
+            },
+
+            // Profile (Image Compression & Save)
+            saveProfile: async function() {
+                const title = document.getElementById('profTitle').value;
+                const first = document.getElementById('profFirst').value;
+                const last = document.getElementById('profLast').value;
+                const sec = document.getElementById('profSec').value;
+                const file = document.getElementById('profPic').files[0];
+
+                if(!first || !last) return this.showMsg('profileMsg', 'กรุณากรอกชื่อและนามสกุล', true);
+
+                let photo_path = null;
+                if (file) {
+                    // Resize image using Canvas
+                    const img = new Image();
+                    img.src = URL.createObjectURL(file);
+                    await new Promise(r => img.onload = r);
+                    
+                    const canvas = document.getElementById('imgCanvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 400;
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+                    const fileName = `${this.user.id}/${Date.now()}.jpg`;
+                    
+                    const { error: uploadError } = await this.supabase.storage.from('photos').upload(fileName, blob);
+                    if(uploadError) return this.showMsg('profileMsg', 'อัปโหลดรูปไม่สำเร็จ', true);
+                    photo_path = fileName;
+                }
+
+                const updateData = { title, first_name: first, last_name: last, section: sec };
+                if (photo_path) updateData.photo_path = photo_path;
+
+                const { error } = await this.supabase.from('students').update(updateData).eq('user_id', this.user.id);
+                if (error) this.showMsg('profileMsg', error.message, true);
+                else {
+                    this.userData = { ...this.userData, ...updateData };
+                    this.loadStudentDashboard();
+                }
+            },
+
+            // Student Dashboard
+            loadStudentDashboard: async function() {
+                document.getElementById('dashId').innerText = this.userData.id;
+                document.getElementById('dashName').innerText = `${this.userData.title||''} ${this.userData.first_name} ${this.userData.last_name}`;
+                
+                if (this.userData.photo_path) {
+                    const { data } = await this.supabase.storage.from('photos').createSignedUrl(this.userData.photo_path, 3600);
+                    if(data) document.getElementById('dashPic').src = data.signedUrl;
+                }
+
+                // Get attempts
+                const { data: attempts } = await this.supabase.from('attempts').select('kind, score').eq('user_id', this.user.id);
+                let pre = null, post = null;
+                attempts?.forEach(a => { if(a.kind === 'pre') pre = a.score; if(a.kind === 'post') post = a.score; });
+                
+                document.getElementById('dashPre').innerText = pre !== null ? pre : '-';
+                document.getElementById('dashPost').innerText = post !== null ? post : '-';
+                
+                if (pre !== null && post !== null) {
+                    let gain = pre === 10 ? (post === 10 ? 0 : (post-pre)) : (post - pre) / (10 - pre);
+                    document.getElementById('dashGain').innerText = gain.toFixed(2);
+                    document.getElementById('btnStartFlow').innerText = 'ทบทวนบทเรียน';
+                } else if (pre !== null) {
+                    document.getElementById('btnStartFlow').innerText = 'เรียนต่อ';
+                }
+
+                // Determine Exam Set (Even = Pre A / Post B, Odd = Pre B / Post A)
+                const lastDigit = parseInt(this.userData.id.slice(-1));
+                this.state.examType = (lastDigit % 2 === 0) ? 'A' : 'B';
+
+                this.showView('viewStudentDash');
+            },
+
+            // Flow Controller
+            startFlow: async function() {
+                // Check progress
+                const { data: attempts } = await this.supabase.from('attempts').select('kind').eq('user_id', this.user.id);
+                const hasPre = attempts?.some(a => a.kind === 'pre');
+                const hasPost = attempts?.some(a => a.kind === 'post');
+                
+                if (!hasPre) this.state.step = 1; // Pre-test
+                else if (hasPost) this.state.step = 8; // Summary
+                else {
+                    // Find last uncompleted unit
+                    const { data: prog } = await this.supabase.from('progress').select('unit').eq('user_id', this.user.id).eq('done', true);
+                    let maxUnit = 0;
+                    prog?.forEach(p => maxUnit = Math.max(maxUnit, p.unit));
+                    this.state.step = maxUnit >= 5 ? 7 : (maxUnit + 2); // Next unit or Post-test
+                }
+                this.renderFlow();
+            },
+
+            renderFlow: function() {
+                const titleEl = document.getElementById('lessonTitle');
+                const contentEl = document.getElementById('lessonContent');
+                const interArea = document.getElementById('interactionArea');
+                <comment-tag id="1">const arArea = document.getElementById('arArea');
+
+                interArea.classList.add('hidden');</comment-tag id="1" text="ลบการประกาศตัวแปร `arArea` ที่อ้างอิง ID ผิดและไม่ได้ถูกนำไปใช้งานจริง เพื่อให้โค้ดสะอาดและป้องกันข้อผิดพลาดในอนาคต" type="suggestion">interArea.classList.add('hidden');
+                document.getElementById('arPracticeArea').classList.add('hidden');
+                document.getElementById('btnNext').classList.add('hidden');
+
+                if (this.state.step === 1 || this.state.step === 7) {
+                    // Render Exam
+                    const isPre = this.state.step === 1;
+                    titleEl.innerText = isPre ? 'แบบทดสอบก่อนเรียน' : 'แบบทดสอบหลังเรียน';
+                    
+                    let curSet = this.state.examType;
+                    if (!isPre) curSet = (curSet === 'A') ? 'B' : 'A'; // Swap for post
+
+                    this.state.answers = [];
+                    let html = `<p>กรุณาเลือกคำตอบที่ถูกต้องที่สุด</p>`;
+                    courseData.exams[curSet].forEach((q, i) => {
+                        html += `<div style="margin-bottom:20px;">
+                            <strong>ข้อ ${i+1}. ${this.escapeHTML(q.q)}</strong>
+                            <div style="margin-top:10px;">
+                                ${q.opts.map((opt, j) => `
+                                    <button class="option-btn" id="q${i}_o${j}" onclick="app.selectExamAns(${i}, ${j}, ${q.ans})">${this.escapeHTML(opt)}</button>
+                                `).join('')}
+                            </div>
+                            ${!isPre ? `<div id="rat_${i}" class="hidden" style="color:var(--secondary); font-size:14px; margin-top:5px;"><strong>เหตุผล:</strong> ${this.escapeHTML(q.rationale)}</div>` : ''}
+                        </div>`;
+                    });
+                    html += `<button onclick="app.submitExam('${isPre?'pre':'post'}', '${curSet}')" style="width:100%;">ส่งคำตอบ</button>`;
+                    contentEl.innerHTML = html;
+                } 
+                else if (this.state.step >= 2 && this.state.step <= 6) {
+                    // Render Unit
+                    const unitIdx = this.state.step - 2;
+                    const unit = courseData.units[unitIdx];
+                    titleEl.innerText = unit.title;
+                    contentEl.innerHTML = unit.content;
+                    
+                    if (unit.miniQ) {
+                        interArea.classList.remove('hidden');
+                        document.getElementById('miniQText').innerText = unit.miniQ.q;
+                        document.getElementById('miniQOpts').innerHTML = unit.miniQ.opts.map((opt, j) => 
+                            `<button class="option-btn" onclick="app.checkMiniQ(${j}, ${unit.miniQ.ans})">${this.escapeHTML(opt)}</button>`
+                        ).join('');
+                        document.getElementById('miniQFeedback').classList.add('hidden');
+                    } else if (unit.hasAssignment) {
+                        document.getElementById('arPracticeArea').classList.remove('hidden');
+                        document.getElementById('btnNext').classList.remove('hidden'); // allow pass if they want to submit later
+                    } else {
+                        document.getElementById('btnNext').classList.remove('hidden');
+                    }
+                }
+                else if (this.state.step === 8) {
+                    this.loadStudentDashboard(); // Back to dash
+                    return;
+                }
+                this.showView('viewLesson');
+            },
+
+            selectExamAns: function(qIdx, oIdx, correctIdx) {
+                this.state.answers[qIdx] = { selected: oIdx, correct: correctIdx };
+                for(let i=0; i<4; i++) {
+                    const btn = document.getElementById(`q${qIdx}_o${i}`);
+                    if(btn) btn.style.border = (i === oIdx) ? '2px solid var(--primary)' : '1px solid var(--border)';
+                }
+            },
+
+            submitExam: async function(kind, set) {
+                const totalQ = courseData.exams[set].length;
+                if (Object.keys(this.state.answers).length < totalQ) {
+                    alert('กรุณาตอบให้ครบทุกข้อ'); return;
+                }
+                let score = 0;
+                for(let i=0; i<totalQ; i++) {
+                    if (this.state.answers[i].selected === this.state.answers[i].correct) score++;
+                    // If Post-test, show rationale
+                    if (kind === 'post') {
+                        document.getElementById(`rat_${i}`).classList.remove('hidden');
+                        document.getElementById(`q${i}_o${this.state.answers[i].selected}`).classList.add('wrong');
+                        document.getElementById(`q${i}_o${this.state.answers[i].correct}`).classList.remove('wrong');
+                        document.getElementById(`q${i}_o${this.state.answers[i].correct}`).classList.add('correct');
+                    }
+                }
+
+                // Save to DB
+                <comment-tag id="2">await this.supabase.from('attempts').insert({
+                    user_id: this.user.id, kind: kind, score: score, answers: this.state.answers
+                });
+
+                if (kind === 'pre') {</comment-tag id="2" text="เพิ่มการตรวจสอบข้อผิดพลาด (Error Handling) หลังจาก Insert ข้อมูลลงตาราง `attempts` เพื่อแจ้งเตือนผู้ใช้ในกรณีที่พยายามส่งข้อสอบซ้ำ (ติด Unique Constraint) หรือเกิดปัญหาการเชื่อมต่อ" type="suggestion">const { error } = await this.supabase.from('attempts').insert({
+                    user_id: this.user.id, kind: kind, score: score, answers: this.state.answers
+                });
+
+                if (error) {
+                    alert('ส่งคำตอบไม่สำเร็จ: คุณได้ทำแบบทดสอบนี้ไปแล้ว หรือเกิดข้อผิดพลาด');
+                    return;
+                }
+
+                if (kind === 'pre') {
+                    alert(`บันทึกผลเรียบร้อย คุณได้คะแนน ${score}/${totalQ}`);
+                    this.state.step++;
+                    this.renderFlow();
+                } else {
+                    document.getElementById('lessonContent').innerHTML += `<div class="msg msg-success" style="margin-top:20px;">บันทึกผลเรียบร้อย คุณได้คะแนน ${score}/${totalQ}</div>`;
+                    document.getElementById('btnNext').classList.remove('hidden');
+                }
+            },
+
+            checkMiniQ: async function(selected, correct) {
+                const fb = document.getElementById('miniQFeedback');
+                fb.classList.remove('hidden');
+                if (selected === correct) {
+                    fb.innerText = 'ถูกต้อง! เชิญไปบทต่อไป';
+                    fb.style.color = 'var(--success)';
+                    document.getElementById('btnNext').classList.remove('hidden');
+                    
+                    // Mark unit done
+                    await this.supabase.from('progress').upsert({ user_id: this.user.id, unit: this.state.step - 1, done: true }, {onConflict: 'user_id, unit'});
+                } else {
+                    fb.innerText = 'ยังไม่ถูก ลองใหม่อีกครั้ง';
+                    fb.style.color = 'var(--error)';
+                }
+            },
+
+            submitARWork: async function() {
+                const kind = document.getElementById('subKind').value;
+                const url = document.getElementById('subUrl').value;
+                const file = document.getElementById('subFile').files[0];
+                const note = document.getElementById('subNote').value;
+                let storage_path = null;
+                
+                document.getElementById('subStatus').innerText = 'กำลังส่ง...';
+
+                if (kind === 'link' && !url.match(/^https?:\/\//)) {
+                    return this.showMsg('subStatus', 'URL ต้องขึ้นต้นด้วย http:// หรือ https://', true);
+                }
+
+                if (kind === 'file') {
+                    if (!file) return this.showMsg('subStatus', 'กรุณาเลือกไฟล์', true);
+                    if (file.size > 20 * 1024 * 1024) return this.showMsg('subStatus', 'ไฟล์ต้องขนาดไม่เกิน 20MB', true);
+                    
+                    const ext = file.name.split('.').pop();
+                    storage_path = `${this.user.id}/${Date.now()}.${ext}`;
+                    const { error: uploadError } = await this.supabase.storage.from('submissions').upload(storage_path, file);
+                    if(uploadError) return this.showMsg('subStatus', 'อัปโหลดไฟล์ไม่สำเร็จ', true);
+                }
+
+                const payload = {
+                    user_id: this.user.id, unit: 4, kind, url: kind==='link'?url:null, storage_path, note
+                };
+
+                const { error } = await this.supabase.from('submissions').upsert(payload, {onConflict: 'user_id, unit'});
+                if (error) this.showMsg('subStatus', 'เกิดข้อผิดพลาด: ' + error.message, true);
+                else {
+                    this.showMsg('subStatus', 'ส่งงานเรียบร้อยแล้ว');
+                    await this.supabase.from('progress').upsert({ user_id: this.user.id, unit: 4, done: true }, {onConflict: 'user_id, unit'});
+                }
+            },
+
+            nextStep: function() { this.state.step++; this.renderFlow(); },
+            <comment-tag id="3">prevStep: function() { 
+                if (this.state.step > 1) this.state.step--; 
+                else this.state.step = 0; // Go to dash if backing from pre
+                
+                if(this.state.step === 0) this.loadStudentDashboard();
+                else this.renderFlow(); 
+            },</comment-tag id="3" text="ปรับปรุงลอจิกการกดปุ่ม 'ย้อนกลับ' (Back) หากผู้เรียนอยู่หน้าเนื้อหาหน่วยที่ 1 (`step === 2`) ให้เด้งกลับไปที่หน้าแรก (`step === 0`) ทันที เพื่อป้องกันไม่ให้ผู้เรียนย้อนกลับไปทำแบบทดสอบก่อนเรียน (`step === 1`) ซ้ำได้อีก" type="suggestion">prevStep: function() { 
+                if (this.state.step === 2) {
+                    this.state.step = 0; // กลับไปหน้าแรกเพื่อป้องกันการย้อนกลับไปทำข้อสอบก่อนเรียนซ้ำ
+                } else if (this.state.step > 1) {
+                    this.state.step--; 
+                } else {
+                    this.state.step = 0;
+                }
+                
+                if(this.state.step === 0) this.loadStudentDashboard();
+                else this.renderFlow(); 
+            },
+
+            // Teacher Dashboard
+            loadTeacherDashboard: async function() {
+                this.showView('viewTeacherDash');
+                const tbody = document.getElementById('teacherTableBody');
+                tbody.innerHTML = '<tr><td colspan="7">กำลังโหลดข้อมูล...</td></tr>';
+                
+                // Using View (Requires security_invoker in DB)
+                const { data, error } = await this.supabase.from('results_summary').select('*');
+                if (error || !data) return tbody.innerHTML = '<tr><td colspan="7">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
+
+                tbody.innerHTML = '';
+                data.forEach(row => {
+                    const prog = Math.round((row.units_completed || 0) / 5 * 100);
+                    <comment-tag id="4">const gainText = (row.pre_score !== null && row.post_score !== null) ? 
+                                    (((row.post_score - row.pre_score) / (10 - row.pre_score)) || 0).toFixed(2) : '-';</comment-tag id="4" text="แก้ไขสูตรคำนวณ Normalized Gain ในฝั่ง Teacher Dashboard เพื่อป้องกันปัญหาหารด้วยศูนย์ (Divide by Zero) ในกรณีที่ผู้เรียนได้คะแนนก่อนเรียนเต็ม 10 ซึ่งจะทำให้ผลลัพธ์เป็น Infinity หรือ NaN" type="suggestion">let gainText = '-';
+                    if (row.pre_score !== null && row.post_score !== null) {
+                        const pre = row.pre_score;
+                        const post = row.post_score;
+                        const gain = pre === 10 ? (post === 10 ? 0 : (post - pre)) : (post - pre) / (10 - pre);
+                        gainText = gain.toFixed(2);
+                    }
+                    
+                    let actBtn = `<button onclick="app.openGradeModal('${row.student_id}')">ตรวจงาน</button>`;
+                    
+                    tbody.innerHTML += `<tr>
+                        <td>${this.escapeHTML(row.student_id)}</td>
+                        <td>${this.escapeHTML(row.first_name||'')} ${this.escapeHTML(row.last_name||'')}</td>
+                        <td>${row.pre_score ?? '-'}</td>
+                        <td>${row.post_score ?? '-'}</td>
+                        <td>${prog}%</td>
+                        <td>${row.assignment_score ?? 'ยังไม่ตรวจ'}</td>
+                        <td>${actBtn}</td>
+                    </tr>`;
+                });
+            },
+
+            openGradeModal: async function(student_id) {
+                // Find user_id from student_id
+                const { data: stu } = await this.supabase.from('students').select('user_id').eq('id', student_id).single();
+                if(!stu) return alert('ไม่พบรหัสผู้เรียน');
+
+                <comment-tag id="5">const { data: sub } = await this.supabase.from('submissions').select('*').eq('user_id', stu.user_id).eq('unit', 4).single();</comment-tag id="5" text="เปลี่ยนจากคำสั่ง `.single()` เป็น `.maybeSingle()` เพื่อป้องกันไม่ให้ Supabase โยนข้อผิดพลาด (Error 406) เข้า Console ในกรณีที่นักศึกษายังไม่ได้ส่งงาน (ไม่มีข้อมูลในตาราง)" type="suggestion">const { data: sub } = await this.supabase.from('submissions').select('*').eq('user_id', stu.user_id).eq('unit', 4).maybeSingle();
+                
+                const cont = document.getElementById('workContent');
+                if (!sub) {
+                    cont.innerHTML = '<p>ผู้เรียนยังไม่ส่งงาน</p>';
+                    document.getElementById('gradeScore').value = '';
+                    document.getElementById('gradeComment').value = '';
+                } else {
+                    let link = '';
+                    if (sub.kind === 'link') link = `<a href="${this.escapeHTML(sub.url)}" target="_blank" rel="noopener">เปิดลิงก์ผลงาน</a>`;
+                    else if (sub.storage_path) {
+                        const { data } = await this.supabase.storage.from('submissions').createSignedUrl(sub.storage_path, 3600);
+                        link = `<a href="${data.signedUrl}" target="_blank" rel="noopener">ดาวน์โหลดไฟล์แนบ</a>`;
+                    }
+                    cont.innerHTML = `<p><strong>ประเภท:</strong> ${sub.kind}</p><p>${link}</p><p><strong>หมายเหตุ:</strong> ${this.escapeHTML(sub.note)}</p>`;
+                    document.getElementById('gradeScore').value = sub.score || '';
+                    document.getElementById('gradeComment').value = sub.teacher_comment || '';
+                }
+                
+                // Store active edit user_id
+                document.getElementById('modalCheckWork').dataset.activeUser = stu.user_id;
+                document.getElementById('modalCheckWork').classList.remove('hidden');
+            },
+
+            saveGrade: async function() {
+                const uid = document.getElementById('modalCheckWork').dataset.activeUser;
+                const score = parseInt(document.getElementById('gradeScore').value);
+                const comment = document.getElementById('gradeComment').value;
+                if(isNaN(score)) return alert('กรุณาใส่คะแนนเป็นตัวเลข');
+                
+                await this.supabase.from('submissions').update({ score, teacher_comment: comment }).eq('user_id', uid).eq('unit', 4);
+                document.getElementById('modalCheckWork').classList.add('hidden');
+                this.loadTeacherDashboard();
+            },
+
+            exportCSV: async function() {
+                const { data } = await this.supabase.from('results_summary').select('*');
+                if(!data) return;
+                
+                let csvContent = "\uFEFF"; // BOM for Excel Thai
+                csvContent += "รหัส,ชื่อ,นามสกุล,ก่อนเรียน,หลังเรียน,งานปฏิบัติ\n";
+                data.forEach(r => {
+                    csvContent += `"${r.student_id}","${r.first_name||''}","${r.last_name||''}",${r.pre_score||0},${r.post_score||0},${r.assignment_score||0}\n`;
+                });
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `results_${Date.now()}.csv`;
+                link.click();
+            },
+
+            // Materials Management (Teacher & Student view)
+            showManageMaterials: async function() {
+                this.showView('viewManageMat');
+                this.loadMaterialsList('matList', true);
+            },
+            showMaterials: async function() {
+                this.showView('viewMaterials');
+                this.loadMaterialsList('studentMatList', false);
+            },
+            
+            uploadMaterial: async function() {
+                const title = document.getElementById('matTitle').value;
+                const kind = document.getElementById('matKind').value;
+                const url = document.getElementById('matUrl').value;
+                const file = document.getElementById('matFile').files[0];
+                
+                if(!title) return this.showMsg('matMsg', 'กรุณาใส่ชื่อสื่อ', true);
+                let payload = { title, kind };
+
+                if(kind !== 'file') {
+                    if(!url.match(/^https?:\/\//)) return this.showMsg('matMsg', 'URL ไม่ถูกต้อง', true);
+                    payload.url = url;
+                } else {
+                    if(!file) return this.showMsg('matMsg', 'กรุณาเลือกไฟล์', true);
+                    if(file.size > 50 * 1024 * 1024) return this.showMsg('matMsg', 'ขนาดไฟล์เกิน 50MB', true);
+                    
+                    const ext = file.name.split('.').pop();
+                    const path = `materials/${Date.now()}.${ext}`;
+                    const { error } = await this.supabase.storage.from('materials').upload(path, file);
+                    if(error) return this.showMsg('matMsg', 'อัปโหลดไม่สำเร็จ', true);
+                    payload.storage_path = path;
+                    payload.file_name = file.name;
+                }
+
+                await this.supabase.from('materials').insert(payload);
+                this.showMsg('matMsg', 'เพิ่มสื่อสำเร็จ');
+                this.loadMaterialsList('matList', true);
+            },
+
+            loadMaterialsList: async function(elId, isTeacher) {
+                const ul = document.getElementById(elId);
+                ul.innerHTML = '<li>กำลังโหลด...</li>';
+                const { data } = await this.supabase.from('materials').select('*').order('created_at', {ascending: false});
+                
+                ul.innerHTML = '';
+                if(!data || data.length === 0) return ul.innerHTML = '<li>ยังไม่มีสื่อเพิ่มเติม</li>';
+
+                for (let m of data) {
+                    let link = '';
+                    if (m.kind === 'file') {
+                        const { data: urlData } = await this.supabase.storage.from('materials').createSignedUrl(m.storage_path, 3600);
+                        if(urlData) link = urlData.signedUrl;
+                    } else {
+                        link = m.url;
+                    }
+                    
+                    let li = `<li style="margin-bottom:10px; padding:10px; border:1px solid var(--border); background:var(--white);">
+                        <strong>${this.escapeHTML(m.title)}</strong> (${m.kind}) <br>
+                        <a href="${link}" target="_blank" rel="noopener" style="color:var(--primary); text-decoration:underline;">เปิดดู</a>
+                        ${isTeacher ? ` | <button onclick="app.deleteMaterial('${m.id}', '${m.storage_path||''}')" style="padding:2px 5px; font-size:12px; background:var(--error);">ลบ</button>` : ''}
+                    </li>`;
+                    ul.innerHTML += li;
+                }
+            },
+            
+            deleteMaterial: async function(id, path) {
+                if(!confirm('ยืนยันการลบ?')) return;
+                if(path) await this.supabase.storage.from('materials').remove([path]);
+                await this.supabase.from('materials').delete().eq('id', id);
+                this.loadMaterialsList('matList', true);
+            }
+        };
+
+        // Event Listeners
+        document.getElementById('btnLogout').addEventListener('click', () => app.logout());
+        
+        // Boot
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>
